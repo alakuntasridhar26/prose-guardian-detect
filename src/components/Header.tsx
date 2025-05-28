@@ -1,7 +1,9 @@
 
-import { FileText, Shield, BarChart3, Menu, X } from 'lucide-react';
+import { FileText, Shield, BarChart3, Menu, X, LogOut, User } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
   activeTab: 'dashboard' | 'spell' | 'plagiarism';
@@ -10,8 +12,10 @@ interface HeaderProps {
 
 export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
@@ -23,6 +27,12 @@ export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
     navigate(path);
     setActiveTab(id);
     setIsMobileMenuOpen(false);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+    setIsUserMenuOpen(false);
   };
 
   // Determine active tab based on current route
@@ -68,6 +78,36 @@ export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
             ))}
           </nav>
 
+          {/* User Menu */}
+          <div className="hidden md:flex items-center space-x-4">
+            <div className="relative">
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              >
+                <User className="w-5 h-5" />
+                <span className="text-sm font-medium">{user?.email}</span>
+              </button>
+
+              {/* User Dropdown */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+                  </div>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    className="w-full justify-start px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -95,6 +135,21 @@ export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
                   <span className="font-medium">{label}</span>
                 </button>
               ))}
+              
+              {/* Mobile User Info and Logout */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="px-4 py-2">
+                  <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+                </div>
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  className="w-full justify-start px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </nav>
           </div>
         )}
