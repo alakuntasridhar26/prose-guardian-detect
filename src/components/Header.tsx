@@ -1,6 +1,7 @@
 
 import { FileText, Shield, BarChart3, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   activeTab: 'dashboard' | 'spell' | 'plagiarism';
@@ -9,19 +10,37 @@ interface HeaderProps {
 
 export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'spell', label: 'Spell Checker', icon: FileText },
-    { id: 'plagiarism', label: 'Plagiarism Detector', icon: Shield },
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/dashboard' },
+    { id: 'spell', label: 'Spell Checker', icon: FileText, path: '/spell-check' },
+    { id: 'plagiarism', label: 'Plagiarism Detector', icon: Shield, path: '/plagiarism-check' },
   ] as const;
+
+  const handleNavigation = (path: string, id: 'dashboard' | 'spell' | 'plagiarism') => {
+    navigate(path);
+    setActiveTab(id);
+    setIsMobileMenuOpen(false);
+  };
+
+  // Determine active tab based on current route
+  const getCurrentTab = () => {
+    if (location.pathname === '/dashboard') return 'dashboard';
+    if (location.pathname === '/spell-check') return 'spell';
+    if (location.pathname === '/plagiarism-check') return 'plagiarism';
+    return activeTab;
+  };
+
+  const currentTab = getCurrentTab();
 
   return (
     <header className="bg-white shadow-lg border-b border-gray-200">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
               <FileText className="w-6 h-6 text-white" />
             </div>
@@ -33,12 +52,12 @@ export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
-            {navItems.map(({ id, label, icon: Icon }) => (
+            {navItems.map(({ id, label, icon: Icon, path }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleNavigation(path, id)}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                  activeTab === id
+                  currentTab === id
                     ? 'bg-blue-100 text-blue-700 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
@@ -62,15 +81,12 @@ export const Header = ({ activeTab, setActiveTab }: HeaderProps) => {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <nav className="flex flex-col space-y-2">
-              {navItems.map(({ id, label, icon: Icon }) => (
+              {navItems.map(({ id, label, icon: Icon, path }) => (
                 <button
                   key={id}
-                  onClick={() => {
-                    setActiveTab(id);
-                    setIsMobileMenuOpen(false);
-                  }}
+                  onClick={() => handleNavigation(path, id)}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    activeTab === id
+                    currentTab === id
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
