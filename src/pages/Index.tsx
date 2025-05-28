@@ -1,12 +1,22 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState } from 'react';
+import { Header } from '@/components/Header';
+import { SpellChecker } from '@/components/SpellChecker';
+import { PlagiarismDetector } from '@/components/PlagiarismDetector';
+import { Dashboard } from '@/components/Dashboard';
 
 const Index = () => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'spell' | 'plagiarism'>('dashboard');
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      <main className="container mx-auto px-4 py-8">
+        {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} />}
+        {activeTab === 'spell' && <SpellChecker />}
+        {activeTab === 'plagiarism' && <PlagiarismDetector />}
+      </main>
     </div>
   );
 };
