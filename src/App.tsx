@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -28,9 +29,21 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/spell-check" element={<SpellCheck />} />
-            <Route path="/plagiarism-check" element={<PlagiarismCheck />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/spell-check" element={
+              <ProtectedRoute>
+                <SpellCheck />
+              </ProtectedRoute>
+            } />
+            <Route path="/plagiarism-check" element={
+              <ProtectedRoute>
+                <PlagiarismCheck />
+              </ProtectedRoute>
+            } />
             <Route path="/app" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

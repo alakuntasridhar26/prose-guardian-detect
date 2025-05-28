@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
-import { CheckCircle, AlertCircle, Download, Upload, FileText } from 'lucide-react';
+import { CheckCircle, AlertCircle, Download, FileText } from 'lucide-react';
+import { FileUpload } from './FileUpload';
 
 interface SpellSuggestion {
   word: string;
@@ -14,6 +15,7 @@ export const SpellChecker = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<SpellSuggestion[]>([]);
   const [correctedText, setCorrectedText] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
   // Mock spell checking function
   const analyzeText = async () => {
@@ -39,9 +41,17 @@ export const SpellChecker = () => {
     setSuggestions(suggestions.filter(s => s !== suggestion));
   };
 
+  const handleFileProcessed = (content: string, filename: string) => {
+    setText(content);
+    setUploadedFileName(filename);
+    setSuggestions([]);
+    setCorrectedText('');
+  };
+
   const exportReport = () => {
     const report = `Spell Check Report
 Generated: ${new Date().toLocaleString()}
+${uploadedFileName ? `Source File: ${uploadedFileName}` : ''}
 
 Original Text:
 ${text}
@@ -74,32 +84,41 @@ Suggestions Applied: ${suggestions.length}
               <p className="text-gray-600">AI-powered contextual spell correction</p>
             </div>
           </div>
-          <div className="flex space-x-3">
-            <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <Upload className="w-4 h-4" />
-              <span>Upload File</span>
+          {correctedText && (
+            <button
+              onClick={exportReport}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Report</span>
             </button>
-            {correctedText && (
-              <button
-                onClick={exportReport}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Report</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
+      </div>
+
+      {/* File Upload Section */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload File</h3>
+        <FileUpload 
+          onFileProcessed={handleFileProcessed}
+          acceptedTypes={['.pdf', '.docx', '.txt']}
+          maxSizeInMB={10}
+        />
+        {uploadedFileName && (
+          <div className="mt-3 text-sm text-green-600">
+            ✓ File loaded: {uploadedFileName}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Input Text</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Text Content</h3>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Enter your text here to check for spelling errors..."
+            placeholder="Enter your text here or upload a file to check for spelling errors..."
             className="w-full h-64 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <div className="flex items-center justify-between mt-4">
@@ -160,7 +179,7 @@ Suggestions Applied: ${suggestions.length}
             <div className="flex items-center justify-center h-64 text-gray-500">
               <div className="text-center">
                 <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Enter text and click "Check Spelling" to see results</p>
+                <p>Upload a file or enter text and click "Check Spelling" to see results</p>
               </div>
             </div>
           )}

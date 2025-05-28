@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle, Download, Upload, FileText, ExternalLink } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Download, ExternalLink } from 'lucide-react';
+import { FileUpload } from './FileUpload';
 
 interface PlagiarismResult {
   similarity: number;
@@ -14,6 +15,7 @@ export const PlagiarismDetector = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<PlagiarismResult[]>([]);
   const [overallSimilarity, setOverallSimilarity] = useState(0);
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
   // Mock plagiarism detection function
   const analyzeText = async () => {
@@ -49,6 +51,13 @@ export const PlagiarismDetector = () => {
     setIsAnalyzing(false);
   };
 
+  const handleFileProcessed = (content: string, filename: string) => {
+    setText(content);
+    setUploadedFileName(filename);
+    setResults([]);
+    setOverallSimilarity(0);
+  };
+
   const getSimilarityColor = (similarity: number) => {
     if (similarity >= 80) return 'text-red-600 bg-red-50 border-red-200';
     if (similarity >= 50) return 'text-orange-600 bg-orange-50 border-orange-200';
@@ -58,6 +67,7 @@ export const PlagiarismDetector = () => {
   const exportReport = () => {
     const report = `Plagiarism Detection Report
 Generated: ${new Date().toLocaleString()}
+${uploadedFileName ? `Source File: ${uploadedFileName}` : ''}
 
 Overall Similarity: ${overallSimilarity}%
 
@@ -95,31 +105,40 @@ ${index + 1}. Similarity: ${result.similarity}%
               <p className="text-gray-600">Advanced semantic similarity analysis</p>
             </div>
           </div>
-          <div className="flex space-x-3">
-            <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <Upload className="w-4 h-4" />
-              <span>Upload File</span>
+          {results.length > 0 && (
+            <button
+              onClick={exportReport}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Report</span>
             </button>
-            {results.length > 0 && (
-              <button
-                onClick={exportReport}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Report</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
+      </div>
+
+      {/* File Upload Section */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload File</h3>
+        <FileUpload 
+          onFileProcessed={handleFileProcessed}
+          acceptedTypes={['.pdf', '.docx', '.txt']}
+          maxSizeInMB={10}
+        />
+        {uploadedFileName && (
+          <div className="mt-3 text-sm text-green-600">
+            ✓ File loaded: {uploadedFileName}
+          </div>
+        )}
       </div>
 
       {/* Input Section */}
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Input Text</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Text Content</h3>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Enter your text here to check for plagiarism..."
+          placeholder="Enter your text here or upload a file to check for plagiarism..."
           className="w-full h-48 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         />
         <div className="flex items-center justify-between mt-4">
@@ -209,7 +228,7 @@ ${index + 1}. Similarity: ${result.similarity}%
           <div className="flex items-center justify-center h-32 text-gray-500">
             <div className="text-center">
               <Shield className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>Enter text and click "Check Plagiarism" to see results</p>
+              <p>Upload a file or enter text and click "Check Plagiarism" to see results</p>
             </div>
           </div>
         </div>
