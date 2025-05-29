@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Header } from '@/components/Header';
-import { PlagiarismDetector } from '@/components/PlagiarismDetector';
+import { AdvancedPlagiarismDetector } from '@/components/AdvancedPlagiarismDetector';
 
 export default function PlagiarismCheck() {
   return (
@@ -9,7 +9,7 @@ export default function PlagiarismCheck() {
       <Header activeTab="plagiarism" setActiveTab={() => {}} />
       
       <main className="container mx-auto px-4 py-8">
-        <PlagiarismDetector />
+        <AdvancedPlagiarismDetector />
       </main>
     </div>
   );
