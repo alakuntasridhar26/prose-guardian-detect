@@ -1,73 +1,160 @@
 
 import { useState } from 'react';
-import { CheckCircle, AlertCircle, Download, FileText } from 'lucide-react';
+import { CheckCircle, AlertCircle, Download, FileText, Brain, BookOpen, Zap } from 'lucide-react';
 import { FileUpload } from './FileUpload';
-
-interface SpellSuggestion {
-  word: string;
-  suggestions: string[];
-  position: number;
-  confidence: number;
-}
+import { spellChecker, SpellingSuggestion, SpellCheckResult } from '@/utils/spellCorrection';
+import { useToast } from '@/hooks/use-toast';
 
 export const SpellChecker = () => {
   const [text, setText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [suggestions, setSuggestions] = useState<SpellSuggestion[]>([]);
-  const [correctedText, setCorrectedText] = useState('');
+  const [spellCheckResult, setSpellCheckResult] = useState<SpellCheckResult | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const { toast } = useToast();
 
-  // Mock spell checking function
   const analyzeText = async () => {
+    if (!text.trim()) {
+      toast({
+        title: "No text to analyze",
+        description: "Please enter some text or upload a file first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Mock suggestions
-    const mockSuggestions: SpellSuggestion[] = [
-      { word: 'teh', suggestions: ['the', 'tea', 'tech'], position: 0, confidence: 0.95 },
-      { word: 'recieve', suggestions: ['receive', 'achieve', 'deceive'], position: 20, confidence: 0.89 },
-    ];
-    
-    setSuggestions(mockSuggestions);
-    setCorrectedText(text.replace(/teh/g, 'the').replace(/recieve/g, 'receive'));
-    setIsAnalyzing(false);
+    try {
+      const result = await spellChecker.checkSpelling(text);
+      setSpellCheckResult(result);
+      
+      toast({
+        title: "Analysis Complete",
+        description: `Found ${result.suggestions.length} suggestions with ${(result.confidence * 100).toFixed(1)}% confidence.`,
+      });
+    } catch (error) {
+      console.error('Spell check error:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "An error occurred while analyzing the text.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  const applySuggestion = (suggestion: SpellSuggestion, newWord: string) => {
-    const newText = text.replace(suggestion.word, newWord);
+  const applySuggestion = (suggestion: SpellingSuggestion, newWord: string) => {
+    const regex = new RegExp(`\\b${suggestion.word}\\b`, 'g');
+    const newText = text.replace(regex, newWord);
     setText(newText);
-    setSuggestions(suggestions.filter(s => s !== suggestion));
+    
+    // Remove the applied suggestion from results
+    if (spellCheckResult) {
+      const updatedSuggestions = spellCheckResult.suggestions.filter(s => s !== suggestion);
+      setSpellCheckResult({
+        ...spellCheckResult,
+        suggestions: updatedSuggestions
+      });
+    }
+    
+    toast({
+      title: "Correction Applied",
+      description: `Replaced "${suggestion.word}" with "${newWord}"`,
+    });
+  };
+
+  const applyAllSuggestions = () => {
+    if (!spellCheckResult) return;
+    
+    let newText = text;
+    spellCheckResult.suggestions.forEach(suggestion => {
+      if (suggestion.suggestions.length > 0) {
+        const regex = new RegExp(`\\b${suggestion.word}\\b`, 'g');
+        newText = newText.replace(regex, suggestion.suggestions[0]);
+      }
+    });
+    
+    setText(newText);
+    setSpellCheckResult({
+      ...spellCheckResult,
+      suggestions: []
+    });
+    
+    toast({
+      title: "All Corrections Applied",
+      description: "Applied all high-confidence suggestions to your text.",
+    });
   };
 
   const handleFileProcessed = (content: string, filename: string) => {
     setText(content);
     setUploadedFileName(filename);
-    setSuggestions([]);
-    setCorrectedText('');
+    setSpellCheckResult(null);
+    
+    toast({
+      title: "File Loaded",
+      description: `Successfully loaded ${filename}`,
+    });
   };
 
   const exportReport = () => {
-    const report = `Spell Check Report
+    if (!spellCheckResult) return;
+    
+    const report = `AI-Powered Spell Check Report
 Generated: ${new Date().toLocaleString()}
-${uploadedFileName ? `Source File: ${uploadedFileName}` : ''}
+${uploadedFileName ? `Source File: ${uploadedFileName}` : 'Direct Text Input'}
+
+Analysis Summary:
+- Total Suggestions: ${spellCheckResult.suggestions.length}
+- Overall Confidence: ${(spellCheckResult.confidence * 100).toFixed(1)}%
+- Preserved Rare Words: ${spellCheckResult.preservedRareWords.length}
 
 Original Text:
 ${text}
 
 Corrected Text:
-${correctedText}
+${spellCheckResult.correctedText}
 
-Suggestions Applied: ${suggestions.length}
+Detailed Suggestions:
+${spellCheckResult.suggestions.map((s, i) => `
+${i + 1}. "${s.word}" (${s.type}, ${(s.confidence * 100).toFixed(1)}% confidence)
+   Context: "${s.context}"
+   Suggestions: ${s.suggestions.join(', ')}
+`).join('')}
+
+Preserved Rare Words:
+${spellCheckResult.preservedRareWords.join(', ') || 'None'}
+
+---
+Generated by AI-Powered Spell Checker with Dictionary Validation
 `;
     
     const blob = new Blob([report], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'spell-check-report.txt';
+    a.download = `spell-check-report-${new Date().toISOString().split('T')[0]}.txt`;
     a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getSuggestionTypeIcon = (type: string) => {
+    switch (type) {
+      case 'grammar': return <BookOpen className="w-4 h-4 text-purple-600" />;
+      case 'context': return <Brain className="w-4 h-4 text-blue-600" />;
+      case 'slang': return <Zap className="w-4 h-4 text-yellow-600" />;
+      default: return <AlertCircle className="w-4 h-4 text-orange-600" />;
+    }
+  };
+
+  const getSuggestionTypeColor = (type: string) => {
+    switch (type) {
+      case 'grammar': return 'border-purple-200 bg-purple-50';
+      case 'context': return 'border-blue-200 bg-blue-50';
+      case 'slang': return 'border-yellow-200 bg-yellow-50';
+      default: return 'border-orange-200 bg-orange-50';
+    }
   };
 
   return (
@@ -80,20 +167,53 @@ Suggestions Applied: ${suggestions.length}
               <FileText className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Spell Checker</h2>
-              <p className="text-gray-600">AI-powered contextual spell correction</p>
+              <h2 className="text-2xl font-bold text-gray-900">AI-Powered Spell Checker</h2>
+              <p className="text-gray-600">Advanced spell correction with dictionary validation and context analysis</p>
             </div>
           </div>
-          {correctedText && (
-            <button
-              onClick={exportReport}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span>Export Report</span>
-            </button>
-          )}
+          <div className="flex space-x-2">
+            {spellCheckResult && spellCheckResult.suggestions.length > 0 && (
+              <button
+                onClick={applyAllSuggestions}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                <span>Apply All</span>
+              </button>
+            )}
+            {spellCheckResult && (
+              <button
+                onClick={exportReport}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Report</span>
+              </button>
+            )}
+          </div>
         </div>
+        
+        {/* Stats */}
+        {spellCheckResult && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{spellCheckResult.suggestions.length}</div>
+              <div className="text-sm text-gray-600">Suggestions</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{(spellCheckResult.confidence * 100).toFixed(1)}%</div>
+              <div className="text-sm text-gray-600">Confidence</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{spellCheckResult.preservedRareWords.length}</div>
+              <div className="text-sm text-gray-600">Rare Words</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-600">{text.split(/\s+/).length}</div>
+              <div className="text-sm text-gray-600">Total Words</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* File Upload Section */}
@@ -118,44 +238,50 @@ Suggestions Applied: ${suggestions.length}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Enter your text here or upload a file to check for spelling errors..."
+            placeholder="Enter your text here or upload a file to check for spelling errors... Try words like 'teh', 'recieve', 'neccessary' to see the AI in action!"
             className="w-full h-64 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-gray-500">{text.length} characters</span>
+            <span className="text-sm text-gray-500">{text.length} characters • {text.split(/\s+/).filter(w => w).length} words</span>
             <button
               onClick={analyzeText}
               disabled={!text.trim() || isAnalyzing}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {isAnalyzing ? 'Analyzing...' : 'Check Spelling'}
+              {isAnalyzing ? 'Analyzing...' : 'Analyze Text'}
             </button>
           </div>
         </div>
 
         {/* Results Section */}
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Results</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Analysis Results</h3>
           {isAnalyzing ? (
             <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Analyzing with AI and dictionary validation...</p>
+              </div>
             </div>
-          ) : suggestions.length > 0 ? (
-            <div className="space-y-4">
-              {suggestions.map((suggestion, index) => (
-                <div key={index} className="p-4 border border-orange-200 rounded-lg bg-orange-50">
+          ) : spellCheckResult && spellCheckResult.suggestions.length > 0 ? (
+            <div className="space-y-4 max-h-64 overflow-y-auto">
+              {spellCheckResult.suggestions.map((suggestion, index) => (
+                <div key={index} className={`p-4 border rounded-lg ${getSuggestionTypeColor(suggestion.type)}`}>
                   <div className="flex items-center space-x-2 mb-2">
-                    <AlertCircle className="w-4 h-4 text-orange-600" />
-                    <span className="font-medium text-orange-900">
-                      "{suggestion.word}" - Confidence: {(suggestion.confidence * 100).toFixed(0)}%
+                    {getSuggestionTypeIcon(suggestion.type)}
+                    <span className="font-medium text-gray-900">
+                      "{suggestion.word}" - {suggestion.type} ({(suggestion.confidence * 100).toFixed(0)}% confidence)
                     </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    Context: "{suggestion.context}"
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {suggestion.suggestions.map((word, i) => (
                       <button
                         key={i}
                         onClick={() => applySuggestion(suggestion, word)}
-                        className="px-3 py-1 bg-white border border-orange-300 rounded-lg hover:bg-orange-100 transition-colors text-sm"
+                        className="px-3 py-1 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
                       >
                         {word}
                       </button>
@@ -164,22 +290,30 @@ Suggestions Applied: ${suggestions.length}
                 </div>
               ))}
             </div>
-          ) : correctedText ? (
+          ) : spellCheckResult ? (
             <div className="space-y-4">
               <div className="flex items-center space-x-2 text-green-600">
                 <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Text analysis complete!</span>
+                <span className="font-medium">Text analysis complete - excellent spelling!</span>
               </div>
+              {spellCheckResult.preservedRareWords.length > 0 && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">Preserved Rare Words:</h4>
+                  <p className="text-blue-700">{spellCheckResult.preservedRareWords.join(', ')}</p>
+                  <p className="text-sm text-blue-600 mt-1">These rare but valid words were preserved in your text.</p>
+                </div>
+              )}
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h4 className="font-medium text-green-900 mb-2">Corrected Text:</h4>
-                <p className="text-gray-700 whitespace-pre-wrap">{correctedText}</p>
+                <h4 className="font-medium text-green-900 mb-2">Analysis Summary:</h4>
+                <p className="text-green-700">No spelling errors detected. Your text maintains high linguistic quality with {(spellCheckResult.confidence * 100).toFixed(1)}% confidence.</p>
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-500">
               <div className="text-center">
-                <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Upload a file or enter text and click "Check Spelling" to see results</p>
+                <Brain className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Upload a file or enter text and click "Analyze Text" to see AI-powered suggestions</p>
+                <p className="text-sm mt-2">Powered by advanced NLP and dictionary validation</p>
               </div>
             </div>
           )}
